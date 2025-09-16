@@ -15,6 +15,10 @@ use App\Http\Controllers\Api\PemesananController;
 use App\Http\Controllers\Api\LaporanPenjualanController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DashboardTeknisiController;
+use App\Http\Controllers\Api\RajaOngkirController;
+use App\Http\Controllers\Api\ShippingController;
+use App\Http\Controllers\Api\BarangMasukController;
+use App\Http\Controllers\Api\JenisKerusakanController;
 
 /*
 |--------------------------------------------------------------------------
@@ -44,6 +48,14 @@ Route::post('/email/verification-notification', function (Request $request) {
 Route::post('/forgot-password', [PasswordController::class, 'sendResetLinkEmail']);
 Route::post('/reset-password', [PasswordController::class, 'resetPassword']);
 
+//RajaOngkir
+Route::prefix('rajaongkir')->group(function () {
+    Route::get('/provinces', [RajaOngkirController::class, 'provinces']);
+    Route::get('/cities/{provinceId}', [RajaOngkirController::class, 'getCities']);
+    Route::get('/districts/{cityId}', [RajaOngkirController::class, 'getDistricts']);
+    Route::post('/check-ongkir', [RajaOngkirController::class, 'checkOngkir']);
+});
+
 /*
 |--------------------------------------------------------------------------
 | Authenticated Routes (Sanctum Protected)
@@ -56,21 +68,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // Produk & Kategori
+    Route::get('/produk-showcase', [ProdukController::class, 'showcase']);
     Route::apiResource('produk', ProdukController::class);
     Route::get('/produk-all', [ProdukController::class, 'all']);
     Route::apiResource('kategori', KategoriController::class);
 
+    // Barang Masuk
+    Route::get('/barang-masuk', [BarangMasukController::class, 'index']);
+    Route::post('/barang-masuk', [BarangMasukController::class, 'store']);
+
     // Servis
+    Route::put('/servis/{id}/opsi-pelanggan', [ServisController::class, 'updateOpsiPelanggan']);
     Route::put('/servis/{id}/status-biaya', [ServisController::class, 'updateStatusBiaya']);
     Route::get('/servis/{id}/snap', [ServisController::class, 'getSnapToken']);
     Route::get('/servis/riwayat', [ServisController::class, 'userServis']);
     Route::apiResource('servis', ServisController::class);
+    Route::apiResource('jenis-kerusakan', JenisKerusakanController::class);
 
     // Keranjang
     Route::post('/keranjang/hapus-massal', [KeranjangController::class, 'hapusMassal']);
     Route::apiResource('keranjang', KeranjangController::class);
 
     // Pemesanan
+    Route::get('/pemesanan/{id}/invoice', [PemesananController::class, 'downloadInvoice']);
     Route::post('/pemesanan/batal-checkout', [PemesananController::class, 'batalCheckout']);
     Route::get('/pemesanan/{id}/snap-token', [PemesananController::class, 'getSnapToken']);
     Route::get('/pemesanan/riwayat-alamat', [PemesananController::class, 'alamatRiwayat']);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Servis;
+use App\Models\JenisKerusakan;
 use Midtrans\Snap;
 use Midtrans\Config;
 
@@ -27,9 +28,10 @@ class ServisController extends Controller
     {
         $validated = $request->validate([
             'tipe_barang' => 'required|string',
-            'kerusakan' => 'required|string',
+            'kerusakan_id' => 'required|exists:jenis_kerusakan,id_kerusakan', // ✅ arahkan ke PK asli
             'ket_tambahan' => 'nullable|string',
             'tanggal_servis' => 'required|date',
+            'opsi_pelanggan' => 'required|in:setuju,hubungi,jual',
         ]);
 
         $user = $request->user();
@@ -44,9 +46,17 @@ class ServisController extends Controller
             ], 403);
         }
 
+        $jenisKerusakan = JenisKerusakan::findOrFail($validated['kerusakan_id']);
+
         $servis = Servis::create([
-            ...$validated,
             'user_id' => $user->id_user,
+            'tipe_barang' => $validated['tipe_barang'],
+            'kerusakan_id' => $jenisKerusakan->id_kerusakan,
+            'kerusakan' => $jenisKerusakan->nama_kerusakan, // simpan nama untuk history
+            'estimasi_biaya' => $jenisKerusakan->estimasi_biaya,
+            'ket_tambahan' => $validated['ket_tambahan'] ?? null,
+            'tanggal_servis' => $validated['tanggal_servis'],
+            'opsi_pelanggan' => $validated['opsi_pelanggan'],
             'status_servis' => 'Diproses'
         ]);
 
@@ -162,6 +172,23 @@ class ServisController extends Controller
         return response()->json([
             'token' => $snapToken,
             'order_id' => $orderId,
+        ]);
+    }
+
+    public function updateOpsiPelanggan(Request $request, $id_servis)
+    {
+        $validated = $request->validate([
+            'opsi_pelanggan' => 'required|in:setuju,hubungi,jual',
+        ]);
+
+        $servis = Servis::findOrFail($id_servis);
+
+        $servis->opsi_pelanggan = $validated['opsi_pelanggan'];
+        $servis->save();
+
+        return response()->json([
+            'message' => 'Opsi pelanggan berhasil diperbarui',
+            'data' => $servis
         ]);
     }
 }

@@ -58,7 +58,15 @@ class PemesananController extends Controller
             'nama_penerima' => 'required|string|max:100',
             'no_hp' => 'required|string|max:20',
             'alamat' => 'required|string',
-            'cat_opsional' => 'nullable|string',
+            'provinsi' => 'required|string',
+            'kota' => 'required|string',
+            'kecamatan' => 'nullable|string',
+            'kode_pos' => 'nullable|string|max:10',
+            'kurir' => 'required|string',
+            'layanan' => 'required|string',
+            'etd' => 'required|string',
+            'ongkir' => 'required|integer|min:0',
+            'berat_total' => 'required|integer|min:1',
             'selected_items' => 'required|array|min:1',
         ]);
 
@@ -73,33 +81,39 @@ class PemesananController extends Controller
             return response()->json(['message' => 'Item keranjang tidak ditemukan atau sudah dihapus.'], 400);
         }
 
+        // Validasi stok cukup (tanpa mengurangi)
+        foreach ($keranjangItems as $item) {
+            if ($item->quantity > $item->produk->stok) {
+                return response()->json([
+                    'message' => "Stok produk '{$item->produk->nama_produk}' tidak mencukupi. Sisa stok: {$item->produk->stok}"
+                ], 422);
+            }
+        }
+
         DB::beginTransaction();
-
         try {
-            foreach ($keranjangItems as $item) {
-                if ($item->quantity > $item->produk->stok) {
-                    return response()->json([
-                        'message' => "Stok produk '{$item->produk->nama_produk}' tidak mencukupi. Sisa stok: {$item->produk->stok}"
-                    ], 422);
-                }
-            }
-
-            foreach ($keranjangItems as $item) {
-                $item->produk->decrement('stok', $item->quantity);
-            }
-
-            $total = $keranjangItems->sum(fn($item) => $item->produk->harga * $item->quantity);
+            $subtotal = $keranjangItems->sum(fn($i) => $i->produk->harga * $i->quantity);
+            $grandTotal = $subtotal + (int) $request->ongkir;
 
             $pemesanan = Pemesanan::create([
                 'user_id' => $user->id_user,
-                'tgl_pemesanan' => Carbon::now(),
+                'tgl_pemesanan' => now(),
                 'cat_opsional' => $request->cat_opsional,
                 'status_pesanan' => 'Pesanan Dibuat',
                 'payment_status' => 'unpaid',
-                'total' => $total,
+                'total' => $grandTotal,
                 'nama_penerima' => $request->nama_penerima,
                 'no_hp' => $request->no_hp,
                 'alamat' => $request->alamat,
+                'provinsi' => $request->provinsi,
+                'kota' => $request->kota,
+                'kecamatan' => $request->kecamatan,
+                'kode_pos' => $request->kode_pos,
+                'kurir' => strtoupper($request->kurir),
+                'layanan' => strtoupper($request->layanan),
+                'etd' => $request->etd,
+                'ongkir' => (int) $request->ongkir,
+                'berat_total' => (int) $request->berat_total,
             ]);
 
             foreach ($keranjangItems as $item) {
@@ -111,6 +125,7 @@ class PemesananController extends Controller
                 ]);
             }
 
+            // Midtrans (tetap)
             \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
             \Midtrans\Config::$isProduction = config('services.midtrans.is_production', false);
             \Midtrans\Config::$isSanitized = true;
@@ -120,7 +135,7 @@ class PemesananController extends Controller
             $params = [
                 'transaction_details' => [
                     'order_id' => $orderId,
-                    'gross_amount' => $total,
+                    'gross_amount' => $grandTotal, // SUBTOTAL + ONGKIR
                 ],
                 'customer_details' => [
                     'first_name' => $request->nama_penerima,
@@ -140,10 +155,9 @@ class PemesananController extends Controller
                 'snap_token' => $snapToken
             ]);
 
-            Keranjang::where('user_id', $user->id_user)
-                ->whereIn('id_keranjang', $request->selected_items)
-                ->delete();
+            // JANGAN hapus keranjang di sini; biarkan dihapus setelah sukses bayar (frontend onSuccess)
             DB::commit();
+
             return response()->json([
                 'message' => 'Pemesanan berhasil dibuat.',
                 'snap_token' => $snapToken,
@@ -362,6 +376,18 @@ class PemesananController extends Controller
         }
 
         return response()->json(['message' => 'Format file tidak dikenali'], 400);
+    }
+
+    public function downloadInvoice($id)
+    {
+        $pemesanan = Pemesanan::with(['details.produk', 'user'])->findOrFail($id);
+
+        $pdf = Pdf::loadView('pdf.invoice', compact('pemesanan'))
+            ->setPaper('A4', 'portrait');
+
+        $filename = 'invoice-' . $pemesanan->id_pemesanan . '.pdf';
+
+        return $pdf->download($filename);
     }
 
 }

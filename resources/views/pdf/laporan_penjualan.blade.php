@@ -52,7 +52,6 @@
 </head>
 
 <body>
-
     <h2>LAPORAN PENJUALAN BULAN<br>{{ $data['bulan_nama'] ?? '-' }} {{ $data['tahun'] ?? '' }}</h2>
 
     <!-- RINGKASAN -->

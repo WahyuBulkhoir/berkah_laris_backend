@@ -25,6 +25,15 @@ class Pemesanan extends Model
         'nama_penerima',
         'no_hp',
         'alamat',
+        'provinsi',
+        'kota',
+        'kecamatan',
+        'kode_pos',
+        'kurir',
+        'layanan',
+        'etd',
+        'ongkir',
+        'berat_total',
     ];
 
     protected $casts = [

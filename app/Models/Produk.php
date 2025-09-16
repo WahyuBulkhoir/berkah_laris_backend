@@ -14,11 +14,13 @@ class Produk extends Model
         'harga',
         'modal',
         'stok',
+        'berat',
         'gambar_produk',
-        'deskripsi'
+        'deskripsi',
+        'deskripsi_minus',
     ];
     public function kategori()
     {
-        return $this->belongsTo(Kategori::class, 'id_kategori');
+        return $this->belongsTo(Kategori::class, 'id_kategori', 'id_kategori');
     }
 }

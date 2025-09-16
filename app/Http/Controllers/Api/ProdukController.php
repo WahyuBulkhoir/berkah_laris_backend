@@ -51,8 +51,10 @@ class ProdukController extends Controller
             'harga' => 'required|numeric',
             'modal' => 'required|numeric|min:0',
             'stok' => 'required|integer',
+            'berat' => 'required|integer|min:1',
             'gambar_produk' => 'nullable|image|max:1000',
             'deskripsi' => 'nullable|string',
+            'deskripsi_minus' => 'nullable|string',
         ]);
 
         if ($request->hasFile('gambar_produk')) {
@@ -87,8 +89,10 @@ class ProdukController extends Controller
             'harga' => 'sometimes|required|numeric',
             'modal' => 'sometimes|required|numeric|min:0',
             'stok' => 'sometimes|required|integer',
+            'berat' => 'sometimes|required|integer|min:1',
             'gambar_produk' => 'nullable|image|max:1000',
             'deskripsi' => 'nullable|string',
+            'deskripsi_minus' => 'nullable|string',
         ]);
 
         if ($request->hasFile('gambar_produk')) {
@@ -124,4 +128,15 @@ class ProdukController extends Controller
             'message' => 'Produk berhasil dihapus'
         ]);
     }
+
+    public function showcase()
+    {
+        $produk = Produk::with('kategori')
+            ->orderBy('created_at', 'desc') // ambil produk terbaru
+            ->take(8) // misalnya ambil 8 produk saja
+            ->get();
+
+        return response()->json($produk);
+    }
+
 }
